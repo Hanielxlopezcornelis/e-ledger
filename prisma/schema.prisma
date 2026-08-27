@@ -1,0 +1,68 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  name         String
+  passwordHash String        
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  transactions Transaction[]
+}
+
+model Transaction {
+  id            String              @id @default(uuid())
+  userId        String   
+  amount        Float    
+  date          DateTime 
+  entity        String   
+  detail        String?  
+  type          TransactionType
+  category      TransactionCategory
+  paymentMethod PaymentMethod
+  installments  Int?     
+  isFixed       Boolean             @default(false) 
+  isAutomatic   Boolean             @default(false) 
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  user          User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+enum TransactionType {
+  INCOME       
+  EXPENSE      
+  SAVING       
+  INVESTMENT   
+}
+
+enum TransactionCategory {
+  INCOME          // Ingreso
+  HEALTH          // Salud
+  UTILITIES       // Servicios (Luz, Agua, Gas, Internet)
+  FOOD            // Alimentos / Supermercado
+  TRANSPORT       // Transporte (Boleto, Sube)
+  AUTO            // Autos (Combustible, Seguro, Patente)
+  APPS            // App's / Suscripciones (Netflix, Spotify)
+  ENTERTAINMENT   // Entretenimiento
+  EDUCATION       // Estudios / Educación
+  OTHER           // Otros
+}
+
+enum PaymentMethod {
+  CREDIT_CARD  
+  DEBIT_CARD   
+  CASH         
+  TRANSFER     
+}
