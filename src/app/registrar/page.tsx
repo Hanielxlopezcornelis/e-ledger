@@ -8,7 +8,13 @@ import * as XLSX from 'xlsx';
 export default function RegistrarPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const editId = searchParams.get('edit'); 
+  const [editId, setEditId] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams) {
+      setEditId(searchParams.get('edit'));
+    }
+  }, [searchParams]); 
 
   // Referencia para el input de archivo oculto
   const fileInputRef = useRef<HTMLInputElement>(null);
