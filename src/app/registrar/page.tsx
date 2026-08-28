@@ -1,11 +1,11 @@
 'use client';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import ProtectedRoute from "../../components/layout/ProtectedRoute";
 import * as XLSX from 'xlsx';
 
-export default function RegistrarPage() {
+function RegistrarFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [editId, setEditId] = useState<string | null>(null);
@@ -175,9 +175,6 @@ export default function RegistrarPage() {
     }
   };
 
-  // ==========================================
-  // MOTOR DE IMPORTACIÓN DE EXCEL / CSV
-  // ==========================================
   const handleImportarExcel = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -195,34 +192,27 @@ export default function RegistrarPage() {
           const sheetName = workbook.SheetNames[0];
           const worksheet = workbook.Sheets[sheetName];
           
-          // Convertimos la hoja a JSON
           const data = XLSX.utils.sheet_to_json(worksheet);
           let importadosExito = 0;
 
-          // Diccionarios para traducir del Excel al formato de la Base de Datos
           const tipoMapInv: Record<string, string> = { 'Gasto': 'EXPENSE', 'Ingreso': 'INCOME', 'Ahorro': 'SAVING', 'Inversión': 'INVESTMENT' };
           const catMapInv: Record<string, string> = { 'Salud': 'HEALTH', 'Servicios': 'UTILITIES', 'Alimentos': 'FOOD', 'Transporte': 'TRANSPORT', 'Autos': 'AUTO', 'Suscripciones': 'APPS', 'Entretenimiento': 'ENTERTAINMENT', 'Estudios': 'EDUCATION', 'Otros': 'OTHER' };
           const pagoMapInv: Record<string, string> = { 'Tarjeta de Crédito': 'CREDIT_CARD', 'Tarjeta de Débito': 'DEBIT_CARD', 'Efectivo': 'CASH', 'Transferencia': 'TRANSFER' };
 
-          // Recorremos cada fila del Excel
           for (const row of data as any[]) {
-            
-            // 1. Acomodamos la fecha (De DD/MM/YYYY a YYYY-MM-DD)
             let fechaFormat = new Date().toISOString().split('T')[0];
             if (row.Fecha && typeof row.Fecha === 'string') {
               const parts = row.Fecha.split('/');
               if (parts.length === 3) fechaFormat = `${parts[2]}-${parts[1]}-${parts[0]}`;
             }
 
-            // 2. Preparamos el paquete de datos
             const payload = {
               userId: userId,
-              amount: Math.abs(parseFloat(row.Monto || 0)), // Math.abs limpia los signos negativos
+              amount: Math.abs(parseFloat(row.Monto || 0)),
               date: fechaFormat,
               entity: row.Entidad || 'Importado',
               detail: row.Detalle || null,
               type: tipoMapInv[row.Tipo] || 'EXPENSE',
-              // Chequeamos "Categoría" con tilde y sin tilde por si acaso
               category: catMapInv[row.Categoría || row.Categoria] || 'OTHER',
               paymentMethod: pagoMapInv[row['Forma de Pago']] || 'CASH',
               installments: 1,
@@ -230,7 +220,6 @@ export default function RegistrarPage() {
               isAutomatic: false
             };
 
-            // 3. Enviamos a la base de datos
             const res = await fetch('/api/transactions', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -247,7 +236,7 @@ export default function RegistrarPage() {
           setErrorMsg('Error al leer el formato del Excel. Asegúrate de usar la plantilla correcta.');
         } finally {
           setIsImporting(false);
-          if (fileInputRef.current) fileInputRef.current.value = ''; // Reseteamos el input
+          if (fileInputRef.current) fileInputRef.current.value = '';
         }
       };
       
@@ -533,5 +522,17 @@ export default function RegistrarPage() {
         </div>
       </main>
     </ProtectedRoute>
+  );
+}
+
+export default function RegistrarPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <p className="font-semibold text-brand-dark">Cargando...</p>
+      </div>
+    }>
+      <RegistrarFormContent />
+    </Suspense>
   );
 }
